@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TravelTogether — Map + Chat + Payment (fixed)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+  <style>
+    body { background-color: #0f1117; color: #e6edf3; font-family: 'Inter', sans-serif; }
+    .leaflet-container { background: #0f1117; border-radius: 12px; transition: all 0.3s ease; z-index: 1; }
+    .leaflet-popup-content-wrapper { background: #161b22; color: #e6edf3; border-radius: 8px; }
+    .route-shadow { filter: drop-shadow(0 0 6px rgba(0, 224, 184, 0.5)); }
+    .badge { background:#0b1220; padding:4px 8px; border-radius:999px; font-size:12px; color:#9fbfb3 }
+    /* Chat above map */
+    #chatWindow { transition: transform 0.3s ease-in-out; transform: translateY(100%); z-index: 10002; position: fixed; }
+    #chatWindow.active { transform: translateY(0%); }
+    /* Payment modal high z-index */
+    #paymentModal { z-index: 10005; }
+    #paymentModal .modal-panel { z-index: 10006; }
+    /* ensure matches panel and controls are above map */
+    .controls, .matches-panel { z-index: 10001; position: relative; }
+  </style>
+</head>
+<body class="overflow-hidden">
+  <!-- Navbar -->
+  <nav class="flex justify-between items-center px-6 py-4 bg-[#161b22] shadow-lg controls">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-[#00e0b8] rounded-md shadow-lg shadow-[#00e0b866]"></div>
+      <h1 class="text-xl font-semibold">TravelTogether</h1>
+    </div>
+  </nav>
+
+  <!-- Layout: Side panel + Map + Matches -->
+  <div class="flex flex-col md:flex-row h-[calc(100vh-64px)] p-4 gap-4">
+    <!-- Control Panel -->
+    <div class="w-full md:w-80 bg-[#161b22] p-4 rounded-xl shadow-lg space-y-3 flex-shrink-0 controls">
+      <h2 class="text-lg font-semibold mb-2 text-[#00e0b8]">Plan Your Trip</h2>
+      <div>
+        <label class="text-sm text-gray-400">Start</label>
+        <input id="start" placeholder="Click map to set" class="w-full mt-1 p-2 rounded bg-[#0f1117] border border-[#2a323d]" readonly />
+      </div>
+      <div>
+        <label class="text-sm text-gray-400">Destination</label>
+        <input id="dest" placeholder="Click map to set" class="w-full mt-1 p-2 rounded bg-[#0f1117] border border-[#2a323d]" readonly />
+      </div>
+      <div class="flex gap-2">
+        <button id="publishBtn" class="flex-1 py-2 bg-[#00e0b8] text-[#0f1117] rounded font-semibold">Publish Route</button>
+        <button id="findBtn" class="flex-1 py-2 bg-[#58a6ff] text-[#042b2e] rounded font-semibold">Find Matches</button>
+      </div>
+      <button id="clearBtn" class="w-full py-2 bg-[#0b1220] text-[#9aa6b2] rounded font-semibold border border-[#223]">Clear Route</button>
+      <p class="text-xs text-gray-400 mt-2">Click map to choose Start and Destination — route draws automatically. Publish to add your route to the local pool.</p>
+    </div>
+
+    <!-- Map -->
+    <div class="flex-1 rounded-xl overflow-hidden relative">
+      <div id="map" class="h-full w-full rounded-xl shadow-xl"></div>
+    </div>
+
+    <!-- Matches Panel -->
+    <div class="w-full md:w-96 bg-[#161b22] p-4 rounded-xl shadow-lg space-y-3 overflow-auto matches-panel">
+      <h2 class="text-lg font-semibold mb-2 text-[#58a6ff]">Nearby Rides</h2>
+      <div id="matchesContainer" class="space-y-3 text-sm text-gray-300">No matches yet.</div>
+    </div>
+  </div>
+
+  <!-- Chat Window -->
+  <div id="chatWindow" class="bottom-0 right-4 w-80 bg-[#161b22] rounded-t-xl border-t border-[#2a323d] shadow-2xl flex flex-col h-96">
+    <div class="flex justify-between items-center p-3 border-b border-[#2a323d]">
+      <span id="chatTitle" class="font-semibold text-[#00e0b8]">Chat Room</span>
+      <button id="closeChat" class="text-gray-400 hover:text-gray-200">✕</button>
+    </div>
+    <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
+    <div class="flex p-2 border-t border-[#2a323d]">
+      <input id="chatInput" type="text" placeholder="Type a message..." class="flex-1 bg-[#0f1117] rounded p-2 text-sm outline-none"/>
+      <button id="sendMsg" class="ml-2 px-3 py-1 bg-[#00e0b8] text-[#0f1117] rounded">Send</button>
+    </div>
+  </div>
+
+  <!-- Payment Modal (overlay on top) -->
+  <div id="paymentModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center">
+    <div class="modal-panel bg-[#161b22] rounded-lg p-6 w-96 shadow-xl border border-[#2a323d]">
+      <h2 class="text-lg font-semibold text-[#00e0b8] mb-2">Confirm Payment</h2>
+      <div id="paymentDetails" class="text-sm text-gray-300 mb-3"></div>
+      <div id="paymentStatus" class="text-sm text-gray-400 mb-3"></div>
+      <div class="flex justify-between items-center gap-3">
+        <button id="cancelPay" class="px-3 py-1 bg-[#0b1220] text-gray-400 rounded">Cancel</button>
+        <button id="gpayBtn" class="flex items-center gap-2 px-3 py-2 bg-black rounded text-white font-medium">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" class="w-5 h-5"/> Pay with GPay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+
+  <script>
+    // --- Config ---
+    const POINT_TO_ROUTE_THRESHOLD_M = 200;
+    const OVERLAP_PERCENT_THRESHOLD = 15;
+    const AVERAGE_SPEED_KMPH = 35;
+    const BASE_FARE = 30;
+    const RATE_PER_KM = 12;
+
+    // --- Map init (keep original code) ---
+    const map = L.map('map').setView([19.075983, 72.877655], 12);
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20,
+      attribution: '© OpenStreetMap contributors, © Stadia Maps'
+    }).addTo(map);
+
+    let start = null, dest = null;
+    let startMarker = null, destMarker = null, routeLayer = null;
+    let clickCount = 0;
+    let otherRouteLayers = {};
+
+    function loadPool(){ try { return JSON.parse(localStorage.getItem('tt_pool_v3')||'[]'); } catch(e){ return []; } }
+    function savePool(p){ localStorage.setItem('tt_pool_v3', JSON.stringify(p)); }
+
+    // --- Reverse geocode ---
+    async function reverseGeocode(lat, lon){
+      try{
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        const data = await res.json();
+        return data.display_name || `Lat:${lat.toFixed(4)} Lon:${lon.toFixed(4)}`;
+      }catch(e){return `Lat:${lat.toFixed(4)} Lon:${lon.toFixed(4)}`;}
+    }
+
+    // --- OSRM routing ---
+    async function getRoute(s, d){
+      const url = `https://router.project-osrm.org/route/v1/driving/${s.lon},${s.lat};${d.lon},${d.lat}?overview=full&geometries=geojson`;
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('Network error');
+        const data = await res.json();
+        return data.routes[0].geometry.coordinates; // [lon,lat]
+      }catch(e){
+        return [[s.lon,s.lat],[d.lon,d.lat]];
+      }
+    }
+
+    async function drawRoute(){
+      if(!start || !dest) return;
+      const coords = await getRoute(start,dest);
+      const latlngs = coords.map(c=>[c[1],c[0]]);
+      if(routeLayer) map.removeLayer(routeLayer);
+      routeLayer = L.polyline(latlngs, { color: '#00e0b8', weight:7, opacity:0.95 }).addTo(map);
+      map.fitBounds(routeLayer.getBounds(), { padding:[40,40] });
+      window.myRouteCoords = coords;
+    }
+
+    // map click handler (reverse geocode & markers)
+    map.on('click', async e => {
+      const lat = e.latlng.lat, lon = e.latlng.lng;
+      const addr = await reverseGeocode(lat, lon);
+      clickCount++;
+      if(clickCount%2===1){
+        if(startMarker) map.removeLayer(startMarker);
+        startMarker = L.marker([lat,lon]).addTo(map).bindPopup('Start: '+addr).openPopup();
+        start = { lat, lon, label: addr };
+        document.getElementById('start').value = addr;
+      } else {
+        if(destMarker) map.removeLayer(destMarker);
+        destMarker = L.marker([lat,lon]).addTo(map).bindPopup('Destination: '+addr).openPopup();
+        dest = { lat, lon, label: addr };
+        document.getElementById('dest').value = addr;
+        await drawRoute();
+      }
+    });
+
+    // draw pool routes
+    function drawPoolRoutes(){
+      for(const id in otherRouteLayers){ try{ map.removeLayer(otherRouteLayers[id].layer); if(otherRouteLayers[id].hl) map.removeLayer(otherRouteLayers[id].hl); }catch(e){} }
+      otherRouteLayers = {};
+      const pool = loadPool();
+      pool.forEach(p=>{
+        if(!p.routeCoords) return;
+        const latlngs = p.routeCoords.map(c=>[c[1],c[0]]);
+        const layer = L.polyline(latlngs, { color:'#58a6ff', weight:5, opacity:0.6 }).addTo(map);
+        otherRouteLayers[p.id] = { layer, data:p };
+      });
+    }
+
+    // --- Publish route (FIXED) ---
+    document.getElementById('publishBtn').addEventListener('click', async ()=> {
+      // ensure we have start & dest
+      if(!start || !dest){
+        alert('Select Start and Destination (click map twice).');
+        return;
+      }
+
+      // ensure route coords exist: prefer window.myRouteCoords, else extract from routeLayer if available
+      let coords = window.myRouteCoords;
+      if(!coords && routeLayer){
+        const latlngs = routeLayer.getLatLngs(); // array of L.LatLng
+        if(latlngs && latlngs.length>0){
+          coords = latlngs.map(p => [p.lng, p.lat]); // [lon, lat]
+        }
+      }
+
+      if(!coords){
+        // try to compute a straight route
+        coords = [[start.lon, start.lat],[dest.lon, dest.lat]];
+      }
+
+      const pool = loadPool();
+      const id = 'r-'+Math.random().toString(36).slice(2,9);
+      const name = prompt('Your name for publishing this route (visible to others):') || 'Anon';
+      const entry = { id, name, role:'driver', start, dest, routeCoords: coords };
+      pool.push(entry); savePool(pool); drawPoolRoutes();
+      alert('Route published locally as "'+name+'".');
+    });
+
+    // --- Matching helpers (turf) ---
+    function computeOverlapPercent(userCoords, otherCoords){
+      if(!userCoords || !otherCoords) return 0;
+      const userLine = turf.lineString(userCoords);
+      let count = 0;
+      for(let i=0;i<otherCoords.length;i++){
+        const pt = turf.point(otherCoords[i]);
+        const dist = turf.pointToLineDistance(pt, userLine, { units: 'meters' });
+        if(dist <= POINT_TO_ROUTE_THRESHOLD_M) count++;
+      }
+      return Math.round((count / otherCoords.length) * 100);
+    }
+    function kmDistanceBetween(a,b){ const p1 = turf.point([a.lon,a.lat]); const p2 = turf.point([b.lon,b.lat]); return turf.distance(p1,p2,{units:'kilometers'}); }
+    function routeDistanceKm(routeCoords){ const line = turf.lineString(routeCoords); return turf.length(line, { units: 'kilometers' }); }
+    function estimateEtaMinutes(driverStart, userStart){ const dist = kmDistanceBetween(driverStart,userStart); return Math.round((dist / AVERAGE_SPEED_KMPH) * 60); }
+    function estimatePriceForRoute(routeCoords){ const dkm = routeDistanceKm(routeCoords); const total = BASE_FARE + (dkm * RATE_PER_KM); return Math.round(total); }
+
+    // --- Find Matches ---
+    document.getElementById('findBtn').addEventListener('click', ()=> {
+      const container = document.getElementById('matchesContainer'); container.innerHTML = '';
+      const pool = loadPool();
+      if(!window.myRouteCoords){ alert('Draw your route first (Start + Destination).'); return; }
+      const matches = [];
+      pool.forEach(p=>{
+        if(JSON.stringify(p.routeCoords) === JSON.stringify(window.myRouteCoords)) return;
+        const overlap = computeOverlapPercent(window.myRouteCoords, p.routeCoords);
+        if(overlap >= OVERLAP_PERCENT_THRESHOLD){
+          const eta = estimateEtaMinutes(p.start, start);
+          const tripKm = routeDistanceKm(p.routeCoords);
+          const price = estimatePriceForRoute(p.routeCoords);
+          matches.push({ entry: p, overlap, eta, tripKm, price });
+        }
+      });
+      if(matches.length===0){ container.innerHTML = '<div class="text-gray-500">No overlapping routes found in local pool.</div>'; return; }
+      matches.sort((a,b)=>a.eta - b.eta);
+      const firstEta = matches[0].eta;
+      matches.forEach(m=>{
+        const div = document.createElement('div'); div.className='p-3 rounded bg-[#0f1117] border border-[#222]';
+        div.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div><div class="font-semibold">${m.entry.name}</div>
+            <div class="text-xs text-gray-400">Overlap: <span class="text-[#00e0b8]">${m.overlap}%</span> · Trip: ${m.tripKm.toFixed(1)} km</div></div>
+            <div class="text-right"><div class="text-sm font-medium">₹${m.price}</div>
+            <div class="text-xs text-gray-400">ETA: ${m.eta} min</div></div>
+          </div>
+          <div class="mt-2 flex gap-2">
+            <button class="px-3 py-1 bg-[#00e0b8] text-[#041217] rounded text-sm" onclick="openChat('${m.entry.id}')">Chat</button>
+            <button class="px-3 py-1 bg-[#58a6ff] text-[#041217] rounded text-sm" onclick="openPayment(${JSON.stringify(JSON.stringify(m))})">Select Ride</button>
+            ${m.eta === firstEta ? '<div class="ml-auto badge">Closest • Arrives first</div>' : ''}
+          </div>`;
+        container.appendChild(div);
+        highlightOverlapOnMap(m.entry);
+      });
+    });
+
+    function highlightOverlapOnMap(other){
+      if(!window.myRouteCoords) return;
+      const userLine = turf.lineString(window.myRouteCoords);
+      const pts = [];
+      other.routeCoords.forEach(c=>{
+        const pt = turf.point(c);
+        const d = turf.pointToLineDistance(pt, userLine, { units: 'meters' });
+        if(d <= POINT_TO_ROUTE_THRESHOLD_M) pts.push([c[1],c[0]]);
+      });
+      if(pts.length){
+        const hl = L.polyline(pts, { color:'#ffd166', weight:6, opacity:0.95 }).addTo(map);
+        if(otherRouteLayers[other.id]){ if(otherRouteLayers[other.id].hl) map.removeLayer(otherRouteLayers[other.id].hl); otherRouteLayers[other.id].hl = hl; } else { otherRouteLayers[other.id] = { hl }; }
+      }
+    }
+
+    // --- Chat (group per route) ---
+    const chatWindow = document.getElementById("chatWindow");
+    const chatMessages = document.getElementById("chatMessages");
+    const chatInput = document.getElementById("chatInput");
+    const sendBtn = document.getElementById("sendMsg");
+    document.getElementById("closeChat").onclick = () => chatWindow.classList.remove("active");
+    let activeRoom = null;
+    const chatRooms = JSON.parse(localStorage.getItem("groupChats") || "{}");
+
+    window.openChat = id => {
+      activeRoom = "room_" + id;
+      document.getElementById("chatTitle").textContent = "Chat (" + id + ")";
+      chatWindow.classList.add("active");
+      renderChat();
+    };
+    sendBtn.onclick = () => {
+      const msg = chatInput.value.trim();
+      if(!msg) return;
+      chatRooms[activeRoom] = chatRooms[activeRoom] || [];
+      chatRooms[activeRoom].push({ sender: "You", text: msg, time: Date.now() });
+      localStorage.setItem("groupChats", JSON.stringify(chatRooms));
+      chatInput.value = "";
+      renderChat();
+      // optional simulated reply
+      setTimeout(()=> {
+        chatRooms[activeRoom].push({ sender: "Driver", text: "Acknowledged — see you!", time: Date.now() });
+        localStorage.setItem("groupChats", JSON.stringify(chatRooms));
+        renderChat();
+      }, 900);
+    };
+    function renderChat(){
+      chatMessages.innerHTML = (chatRooms[activeRoom] || []).map(m=>`<div class='${m.sender==="You"?"text-right":"text-left"}'>
+        <span class='inline-block px-2 py-1 my-1 rounded-lg ${m.sender==="You"?"bg-[#00e0b8] text-[#041217]":"bg-[#0f1117] text-gray-200"}'><b>${m.sender}:</b> ${m.text}</span></div>`).join("");
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // --- Payment modal (overlay, no minimization) ---
+    const modal = document.getElementById("paymentModal");
+    const details = document.getElementById("paymentDetails");
+    const status = document.getElementById("paymentStatus");
+    document.getElementById("cancelPay").onclick = () => { modal.classList.add("hidden"); status.innerHTML=''; details.innerHTML=''; };
+
+    function openPayment(mJson) {
+      // mJson is JSON-stringified match object
+      const m = JSON.parse(mJson);
+      // Show modal on top of map (no map minimization)
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      const entry = m.entry || m; // sometimes m.entry exists
+      const name = entry.name || (entry.entry && entry.entry.name) || (m.entry && m.entry.name) || 'Driver';
+      const eta = m.eta || (m.entry && m.entry.eta) || 0;
+      const overlap = m.overlap || (m.entry && m.entry.overlap) || 0;
+      const price = m.price || (m.entry && m.entry.price) || (m.tripKm ? estimatePriceForRoute(m.entry?.routeCoords||[]) : 0);
+      const from = entry.start?.label || entry.start || (m.entry && (m.entry.start?.label||m.entry.start)) || '';
+      const to = entry.dest?.label || entry.dest || (m.entry && (m.entry.dest?.label||m.entry.dest)) || '';
+      details.innerHTML = `<div><b>${name}</b> · ETA: ${eta} min · Overlap: ${overlap}%</div>
+        <div class='mt-1'>From ${from} → ${to}</div>
+        <div class='mt-2 text-[#00e0b8] font-semibold text-lg'>Fare: ₹${price}</div>`;
+      status.innerHTML = "Ready to process payment with GPay...";
+      document.getElementById("gpayBtn").onclick = () => {
+        status.innerHTML = "Connecting to GPay...";
+        setTimeout(()=> {
+          status.innerHTML = "<span class='text-green-400'>✅ Payment Successful! Ride Confirmed.</span>";
+        }, 1400);
+      };
+    }
+
+    // --- Clear Route (fixed and also remove highlighted overlaps) ---
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      [startMarker, destMarker, routeLayer].forEach(m => { if (m) try{ map.removeLayer(m); } catch(e){} });
+      start = dest = null; startMarker = destMarker = routeLayer = null;
+      window.myRouteCoords = null; clickCount = 0;
+      document.getElementById('start').value = ''; document.getElementById('dest').value = '';
+      document.getElementById('matchesContainer').innerHTML = 'No matches yet.';
+      for(const id in otherRouteLayers){
+        try { if(otherRouteLayers[id].hl) map.removeLayer(otherRouteLayers[id].hl); } catch(e){}
+      }
+    });
+
+    // --- Initial demo data loader ---
+    (function maybeLoadDemo(){
+      const pool = loadPool();
+      if(pool.length === 0){
+        const demo = [
+          { id:'demo1', name:'Amit', start:{lat:19.075,lon:72.88,label:'Bandra'}, dest:{lat:19.12,lon:72.84,label:'Andheri'}, routeCoords:[[72.88,19.075],[72.84,19.12]] },
+          { id:'demo2', name:'Neha', start:{lat:19.07,lon:72.89,label:'Bandra East'}, dest:{lat:19.12,lon:72.84,label:'Andheri West'}, routeCoords:[[72.89,19.07],[72.84,19.12]] }
+        ];
+        savePool(demo);
+      }
+      drawPoolRoutes();
+    })();
+
+    // Expose a couple helpers for console/debug
+    window._tt = { loadPool, savePool, drawPoolRoutes };
+  </script>
+</body>
+</html>
