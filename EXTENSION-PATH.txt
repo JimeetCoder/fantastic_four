@@ -1,0 +1,10 @@
+Extension Folder Path:
+C:\Users\shiva\Downloads\fantastic_four-ParthVarekar-blindness-part\fantastic_four-ParthVarekar-blindness-part
+
+To Load:
+1. Open Chrome: chrome://extensions/
+   OR Edge: edge://extensions/
+2. Enable Developer mode
+3. Click "Load unpacked"
+4. Paste the path above
+

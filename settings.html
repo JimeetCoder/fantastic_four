@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision Assistant - Settings</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .settings-container {
+            background: var(--surface-color);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin: 20px 0;
+        }
+        .back-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        .back-button:hover {
+            background: #1557b0;
+        }
+        .status-indicator {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .status-indicator.connected {
+            background: rgba(52, 168, 83, 0.2);
+            color: var(--secondary-color);
+        }
+        .status-indicator.disconnected {
+            background: rgba(234, 67, 53, 0.2);
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header" role="banner">
+            <button class="back-button" onclick="window.close()">← Back to Extension</button>
+            <h1 class="app-title">Vision Assistant Settings</h1>
+        </header>
+
+        <main class="main-content" role="main">
+            <!-- Connection Status -->
+            <div class="settings-container">
+                <h2>Connection Status</h2>
+                <div class="status-indicator" id="connectionStatus">
+                    <span id="ollamaStatus">Checking Ollama connection...</span>
+                </div>
+            </div>
+
+            <!-- Ollama Settings -->
+            <div class="settings-container">
+                <h2>Ollama Configuration</h2>
+                <div class="setting-item">
+                    <label class="setting-label" for="ollamaUrl">Ollama URL</label>
+                    <div class="setting-control">
+                        <input type="text" id="ollamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434" style="width: 250px;">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label" for="modelName">Model Name</label>
+                    <div class="setting-control">
+                        <input type="text" id="modelName" value="tinyllama" placeholder="tinyllama" style="width: 250px;">
+                    </div>
+                </div>
+                <button class="primary-button" onclick="testConnection()" style="margin-top: 15px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary-color); color: white; margin-right: 10px;">Test Connection</button>
+                <button onclick="refreshConnection()" style="margin-top: 15px; padding: 10px 20px; border: 1px solid var(--primary-color); border-radius: 8px; cursor: pointer; background: transparent; color: var(--primary-color);">Refresh Status</button>
+            </div>
+
+            <!-- Voice Settings -->
+            <div class="settings-container">
+                <h2>Voice Settings</h2>
+                <div class="setting-item">
+                    <label class="setting-label" for="voiceSpeed">Voice Speed</label>
+                    <div class="setting-control">
+                        <input type="range" class="slider" id="voiceSpeed" min="0.5" max="2" step="0.1" value="1" aria-label="Voice speed">
+                        <span id="voiceSpeedValue">1x</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wake Word Settings -->
+            <div class="settings-container">
+                <h2>Wake Word Settings</h2>
+                <div class="setting-item">
+                    <label class="setting-label" for="wakeWordDetection">Wake Word Detection</label>
+                    <div class="setting-control">
+                        <div class="toggle-switch active" id="wakeWordDetection" role="switch" aria-checked="true" tabindex="0"></div>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label" for="wakeWord">Wake Word</label>
+                    <div class="setting-control">
+                        <input type="text" id="wakeWord" value="vision" placeholder="vision" style="width: 200px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="settings-container">
+                <h2>Actions</h2>
+                <button class="primary-button" onclick="saveSettings()" style="margin: 5px 0; width: 100%;">Save Settings</button>
+                <button class="secondary-button" onclick="resetSettings()" style="margin: 5px 0; width: 100%;">Reset to Defaults</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>
+
