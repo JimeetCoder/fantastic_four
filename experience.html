@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Experience AccessiSuite</title>
+
+    <style>
+      :root {
+        --primary: #2563eb;
+        --accent: #38bdf8;
+        --bg: #f8fafc;
+        --text: #0f172a;
+        --card-gradient: linear-gradient(135deg, #2563eb, #38bdf8);
+        --card-hover-grad: linear-gradient(135deg, #3b82f6, #60a5fa);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Poppins, Arial, sans-serif;
+      }
+
+      body {
+        text-align: center;
+        background: var(--bg);
+        color: var(--text);
+        overflow-x: hidden;
+        padding-bottom: 80px;
+      }
+
+      .blob {
+        position: absolute;
+        width: 350px;
+        height: 350px;
+        background: radial-gradient(circle, var(--accent), var(--primary));
+        filter: blur(130px);
+        opacity: 0.28;
+        animation: float 9s infinite alternate ease-in-out;
+        z-index: -1;
+      }
+      .blob:nth-child(1) { top: -150px; left: -150px; }
+      .blob:nth-child(2) { bottom: -180px; right: -180px; animation-duration: 13s; }
+
+      @keyframes float {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(80px); }
+      }
+
+      h1 {
+        margin-top: 80px;
+        font-size: 42px;
+        font-weight: 700;
+      }
+
+      p.intro {
+        max-width: 680px;
+        margin: 14px auto 60px;
+        font-size: 17px;
+        color: #475569;
+      }
+
+      /* Clean 2x2 Grid */
+      .grid {
+        max-width: 900px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 32px;
+        padding: 0 20px;
+      }
+
+      @media(max-width: 780px){
+        .grid { grid-template-columns: 1fr; }
+      }
+
+      .card {
+        padding: 28px 26px;
+        border-radius: 18px;
+        background: var(--card-gradient);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        opacity: 0;
+        transform: translateY(60px);
+        transition: 0.45s ease, color 0.3s;
+      }
+
+      .card.show { opacity: 1; transform: translateY(0); }
+
+      .card:hover {
+        transform: translateY(-10px) scale(1.03);
+        background: var(--card-hover-grad);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+      }
+
+      .card h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      .card p {
+        font-size: 14.5px;
+        line-height: 1.55;
+        margin-bottom: 18px;
+        color: #eef6ff;
+      }
+
+      .card a {
+        padding: 11px 18px;
+        background: white;
+        color: var(--primary);
+        border-radius: 8px;
+        font-size: 14.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: 0.3s;
+      }
+
+      .card a:hover { transform: translateY(-3px); }
+
+      .cta-section {
+        margin-top: 60px;
+      }
+
+      .cta-section a {
+        background: var(--primary);
+        color: white;
+        padding: 16px 42px;
+        border-radius: 50px;
+        font-size: 18px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: 0.3s;
+      }
+
+      .cta-section a:hover {
+        background:#1e3a8a;
+        transform: translateY(-3px);
+      }
+
+      .footer {
+        margin-top: 70px;
+        padding: 24px;
+        color: #64748b;
+        font-size: 14.5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="blob"></div>
+    <div class="blob"></div>
+
+    <h1>Experience AccessiSuite Live</h1>
+    <p class="intro">Explore individual accessibility features in a simplified testing environment.</p>
+
+    <div class="grid">
+
+      <div class="card">
+        <h3>Head Navigation</h3>
+        <p>Control the cursor using natural head movement through your webcam. Designed for effortless hands-free navigation without special hardware.</p>
+        <a href="final_head_tracking.html">Try Head Tracking</a>
+      </div>
+
+      <div class="card">
+        <h3>AI Voice Assistant</h3>
+        <p>Issue voice commands to control browsing. Speak naturally and receive clear spoken responses for a hands-free experience.</p>
+        <a href="fantastic_four-sumit_vision/popup.html">Try Voice Assistant</a>
+      </div>
+
+      <div class="card">
+        <h3>Color Blind Filters</h3>
+        <p>Preview adjusted color schemes that improve color differentiation for various types of color blindness.</p>
+        <a href="color blindness/color_blindness.html">Try Color Filters</a>
+      </div>
+
+      <div class="card">
+        <h3>Vision & Text Enhancer</h3>
+        <p>Improve readability by adjusting text weight, spacing, sharpness, and contrast for visual comfort.</p>
+        <a href="speechimpair.html">Try Enhancer</a>
+      </div>
+
+    </div>
+
+    <div class="cta-section">
+      <a href="final_llm.html">Try Full Demo Web App</a>
+    </div>
+
+    <div class="footer">© 2025 AccessiSuite · Equal Access For Everyone</div>
+
+    <script>
+      const cards=document.querySelectorAll(".card");
+      const ob=new IntersectionObserver((e)=>{e.forEach(x=>{if(x.isIntersecting)x.target.classList.add("show");})},{threshold:0.15});
+      cards.forEach(c=>ob.observe(c));
+    </script>
+  </body>
+</html>

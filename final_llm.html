@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Voice Assistant — Gemini (Wake Word: "Hello Chatbot")</title>
+  <style>
+    :root{
+      --bg:#0b0f14; 
+      --card:#121826; 
+      --accent1:#7c3aed; 
+      --accent2:#22d3ee; 
+      --accent3:#ef4444; 
+      --text:#e5ecff; 
+      --muted:#93a4c1;
+      --ok:#10b981; 
+      --warn:#f59e0b; 
+      --err:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 1200px at 20% 20%, #101727 0%, #0c1220 40%, #080c16 100%), var(--bg);
+      color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial;
+      overflow:hidden;
+      transition: filter 0.3s ease-in-out;
+    }
+    .wrap{position:relative; height:100%; width:100%; display:grid; place-items:center; padding-bottom:160px}
+
+    /* Center Mic */
+    .mic{
+      position:relative; width:160px; height:160px; border-radius:50%;
+      display:grid; place-items:center; cursor:pointer; user-select:none;
+      background: conic-gradient(from 0deg, var(--accent1), var(--accent2), var(--accent1));
+      box-shadow: 0 0 40px rgba(124,58,237,.35), inset 0 0 30px rgba(34,211,238,.25);
+      animation: spin 8s linear infinite;
+      isolation:isolate;
+    }
+    .mic::before{content:""; position:absolute; inset:6px; border-radius:inherit; background:radial-gradient(100px 100px at 50% 40%, rgba(255,255,255,.25), rgba(0,0,0,0)); filter:blur(1px)}
+    .mic-inner{position:relative; z-index:1; width:104px; height:104px; border-radius:50%; background:linear-gradient(180deg,#0f1423,#0b1020); display:grid; place-items:center; box-shadow: inset 0 0 14px rgba(0,0,0,.6)}
+    .mic-icon{width:54px; height:54px; display:block; background:currentColor; -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23000"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H9v2h6v-2h-2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>') center/contain no-repeat; mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23000"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H9v2h6v-2h-2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>') center/contain no-repeat; color:var(--accent2); transition: color 0.3s;}
+    .ring{position:absolute; inset:-8px; border-radius:50%; pointer-events:none; opacity:.85; background: conic-gradient(from 0deg, transparent 0 30%, rgba(34,211,238,.35) 30% 40%, transparent 40% 55%, rgba(124,58,237,.35) 55% 70%, transparent 70% 100%); filter: blur(8px); animation: breathe 2.2s ease-in-out infinite}
+
+    .state{position:absolute; top:16px; left:16px; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); color:var(--muted); font-weight:600; z-index: 10;}
+    .badge{padding:.25rem .6rem; border-radius:.5rem; font-weight:700}
+    .badge.ok{background:rgba(16,185,129,.12); color:#34d399; border:1px solid rgba(16,185,129,.25)}
+    .badge.warn{background:rgba(245,158,11,.10); color:#fbbf24; border:1px solid rgba(245,158,11,.28)}
+    .badge.err{background:rgba(239,68,68,.10); color:#f87171; border:1D solid rgba(239,68,68,.28)}
+
+    /* Bottom panel */
+    .bottom{position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(15,22,35,.6), rgba(10,15,25,.95)); backdrop-filter: blur(8px); border-top:1px solid rgba(255,255,255,.06); color:var(--text); display:grid; grid-template-columns:1fr 1fr; gap:0; max-height:46vh; min-height:160px}
+    .section{padding:14px 16px; overflow:auto}
+    .section + .section{border-left:1px solid rgba(255,255,255,.06)}
+    .section h3{margin:0 0 10px; font-size:14px; letter-spacing:.4px; color:var(--muted)}
+    .box{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:12px; min-height:64px; transition: font-size 0.3s ease;}
+    .live{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace; white-space: pre-wrap; font-size: 16px;}
+    .log{font-size:13px}
+    .log .row{display:flex; align-items:flex-start; gap:8px; margin:6px 0}
+    .dot{width:10px; height:10px; border-radius:50%; margin-top:5px; flex-shrink: 0;}
+    .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.err{background:var('err')} .dot.neut{background:#64748b}
+    .muted{color:var(--muted)}
+
+    /* Overlay for permission fallback */
+    .overlay{position:fixed; inset:0; background:linear-gradient(180deg, rgba(2,6,23,.9), rgba(2,6,23,.98)); display:none; place-items:center; z-index:50; text-align: center; padding: 1rem;}
+    .card{background:var(--card); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:22px; max-width:520px; text-align:center; box-shadow:0 10px 50px rgba(0,0,0,.4)}
+    .card h2{margin:0 0 8px}
+    .card p{margin:0 0 14px; color:var(--muted)}
+    button{appearance:none; border:none; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer; background:linear-gradient(135deg, var(--accent1), var(--accent2)); color:white; box-shadow:0 8px 20px rgba(124,58,237,.35)}
+
+    /* Keyframes */
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes breathe{0%,100%{transform:scale(.98); opacity:.7} 50%{transform:scale(1.05); opacity:1}}
+
+    /* Mode colors */
+    .mode-wake .mic-icon{color:#34d399} /* ok */
+    .mode-command .mic-icon{color:#fbbf24} /* warn */
+    .mode-processing .mic-icon{color:#60a5fa} /* info */
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="state" class="state">State: <span id="stateText" class="badge warn">initializing…</span></div>
+    <div id="mic" class="mic mode-wake" aria-label="Listening microphone">
+      <div class="ring"></div>
+      <div class="mic-inner">
+        <span class="mic-icon" aria-hidden="true"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom transparency panel -->
+  <div class="bottom" role="region" aria-live="polite">
+    <div class="section">
+      <h3>What I'm hearing (live)</h3>
+      <div id="live" class="box live" aria-label="Live transcription">…</div>
+    </div>
+    <div class="section">
+      <h3>What I'm doing (log)</h3>
+      <div id="log" class="box log" aria-label="Activity log"></div>
+    </div>
+  </div>
+
+  <!-- Overlay shown if auto mic start is blocked -->
+  <div id="overlay" class="overlay" aria-modal="true" role="dialog">
+    <div class="card">
+      <h2>Enable the mic to start</h2>
+      <p>Browsers require one click to enable audio and microphone permissions. Click once to begin.</p>
+      <button id="startBtn">Enable Microphone</button>
+      <p style="margin-top:10px"><small class="muted">Tip: Use a headset for best results.</small></p>
+    </div>
+  </div>
+
+  <script>
+  ;(() => {
+    // ====== CONFIG ======
+    const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
+    const WAKE_PHRASE = 'hello chatbot';
+    const WAKE_PHRASE_NORMALIZED = WAKE_PHRASE.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // API key is injected at runtime by the environment.
+    const apiKey = ""; 
+
+    // ====== UI short-hands ======
+    const $ = (q) => document.querySelector(q);
+    const live = $('#live');
+    const logBox = $('#log');
+    const stateText = $('#stateText');
+    const mic = $('#mic');
+    const overlay = $('#overlay');
+    const startBtn = $('#startBtn');
+
+    // ====== Audio Cues ======
+    let audioCtx;
+    let bestVoice = null;
+    
+    // ====== App State ======
+    let speechVolume = 1.0;
+    let appBrightness = 1.0;
+    let fontSizeModifier = 0; // -2, -1, 0, 1, 2 etc.
+
+    function initAudio() {
+        if (!audioCtx) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx.resume();
+                setupVoices();
+            } catch(e) {
+                addLog('err', 'AudioContext not supported.');
+            }
+        }
+    }
+    
+    function playBeep(frequency = 523, duration = 100, volume = 0.05) {
+        if (!audioCtx) return;
+        try {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.01);
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            oscillator.type = 'sine';
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration / 1000);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration / 1000);
+        } catch (e) {
+            addLog('warn', 'Audio beep failed: ' + e.message);
+        }
+    }
+
+    // ====== Voice Setup ======
+    function setupVoices() {
+      function findBestVoice() {
+        const voices = speechSynthesis.getVoices();
+        if (!voices.length) return;
+        
+        let voice = voices.find(v => v.name === 'Google US English') ||
+                    voices.find(v => v.lang === 'en-US' && v.name.includes('Natural')) ||
+                    voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+                    voices.find(v => v.lang === 'en-US' && v.name.includes('Microsoft')) ||
+                    voices.find(v => v.lang === 'en-US');
+        bestVoice = voice || voices.find(v => v.lang.startsWith('en-')) || voices[0];
+        addLog('ok', `Selected voice: ${bestVoice.name} (${bestVoice.lang})`);
+      }
+      
+      findBestVoice();
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = findBestVoice;
+      }
+    }
+
+    // ====== UI Control Functions ======
+    function setAppBrightness() {
+      document.body.style.filter = `brightness(${appBrightness})`;
+      addLog('ok', `Brightness set to ${Math.round(appBrightness * 100)}%`);
+    }
+
+    function setAppFontSize() {
+      const liveSize = 16 + fontSizeModifier; // Base 16px
+      const logSize = 13 + fontSizeModifier;  // Base 13px
+      live.style.fontSize = `${liveSize}px`;
+      logBox.style.fontSize = `${logSize}px`;
+      addLog('ok', `Font size modifier set to ${fontSizeModifier}`);
+    }
+
+    // ====== State machine ======
+    let mode = 'wake'; // 'wake' | 'command' | 'processing'
+    let recognizing = false;
+    let recognitionStoppedIntentionally = false;
+    let commandTimeout = null; // For silence detection
+
+    function setMode(newMode){
+      if (mode === newMode) return;
+      mode = newMode;
+      mic.classList.remove('mode-wake','mode-command','mode-processing');
+      mic.classList.add('mode-' + newMode);
+      
+      const map = {
+        wake:['listening for wake word','warn'], 
+        command:['listening for command','ok'], 
+        processing:['thinking…','warn']
+      };
+      const [txt, level] = map[newMode] || ['…','warn'];
+      stateText.textContent = txt;
+      stateText.className = 'badge ' + level;
+      addLog('state', 'Switched to "' + newMode + '"');
+
+      if (commandTimeout) {
+        clearTimeout(commandTimeout);
+        commandTimeout = null;
+      }
+      
+      if (newMode === 'command') playBeep(880, 80, 0.1);
+      else if (newMode === 'processing') playBeep(440, 80, 0.1);
+
+      if (newMode === 'wake' || newMode === 'command') {
+        safeStart();
+      } else if (newMode === 'processing' && recognizing) {
+        recognitionStoppedIntentionally = true;
+        recog.stop();
+      }
+    }
+
+    function addLog(level, text){
+      const dotCls = level === 'ok' ? 'ok' : level === 'err' ? 'err' : level === 'state' ? 'neut' : 'warn';
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<span class="dot ${dotCls}"></span><div>${escapeHtml(text)}</div>`;
+      logBox.prepend(row);
+    }
+
+    function setLive(text){
+      live.textContent = text || '…';
+    }
+
+    function escapeHtml(str){
+      return (str+"").replace(/[&<>\"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[s]));
+    }
+
+    // ====== TTS helper ======
+    function speak(text){
+      return new Promise((resolve, reject) => {
+        try {
+          if (recognizing) {
+            recognitionStoppedIntentionally = true;
+            recog.stop();
+            addLog('state', 'Speech started, pausing mic.');
+          }
+
+          const u = new SpeechSynthesisUtterance(text);
+          if (bestVoice) u.voice = bestVoice;
+          u.rate = 1; u.pitch = 1; 
+          u.volume = speechVolume;
+          
+          u.onend = () => {
+            addLog('state', 'Speech finished.');
+            resolve();
+          };
+          u.onerror = (e) => {
+            addLog('err', 'Speech synthesis error: ' + (e.error || 'unknown error'));
+            reject(new Error(e.error));
+          };
+
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+        } catch (e) {
+          addLog('warn', 'Speech synthesis not available: ' + e.message);
+          reject(e);
+        }
+      });
+    }
+
+    // ====== Gemini call with exponential backoff ======
+    async function askGemini(prompt) {
+      if (!apiKey) throw new Error('Missing Gemini API key.');
+      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const systemInstructionText = "You are a voice assistant. Keep your responses concise, conversational, and to the point. One or two sentences is ideal.";
+      
+      const payload = { 
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: systemInstructionText }] }
+      };
+
+      let delay = 1000;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) {
+            if (res.status === 429 || res.status >= 500) {
+              addLog('warn', `Gemini API error ${res.status}. Retrying in ${delay}ms...`);
+              await new Promise(r => setTimeout(r, delay));
+              delay *= 2;
+              continue;
+            } else {
+              const t = await res.text();
+              throw new Error('Gemini HTTP ' + res.status + ': ' + t);
+            }
+          }
+          const data = await res.json();
+          return data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '(no response)';
+        } catch (err) {
+          if (i === 4) throw err;
+        }
+      }
+      throw new Error('Gemini API request failed after all retries.');
+    }
+
+    // ====== Recognition (Web Speech API) ======
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      overlay.style.display = 'grid';
+      overlay.querySelector('.card h2').textContent = 'Browser not supported';
+      overlay.querySelector('.card p').innerHTML = 'This demo needs the <strong>Web Speech API</strong>. Try Chrome or Edge on desktop.';
+      addLog('err', 'Web Speech API not available in this browser.');
+      stateText.textContent = 'unsupported';
+      stateText.className = 'badge err';
+      return;
+    }
+
+    const recog = new SpeechRecognition();
+    recog.lang = 'en-US';
+    recog.interimResults = true;
+    recog.continuous = true;
+
+    recog.onstart = () => {
+      recognizing = true;
+      recognitionStoppedIntentionally = false;
+      addLog('ok', 'Mic active, listening…');
+    };
+    
+    recog.onend = () => {
+      recognizing = false;
+      if (recognitionStoppedIntentionally) {
+        addLog('state', 'Mic paused intentionally.');
+      } else {
+        addLog('warn', 'Mic stopped unexpectedly. Restarting…');
+        if (mode !== 'processing') safeStart();
+      }
+    };
+    
+    recog.onerror = (e) => {
+      addLog('err', 'Recognition error: ' + (e.error || e.message));
+      if (e.error === 'network' || e.error === 'audio-capture') safeStart();
+      else if (e.error === 'not-allowed') overlay.style.display = 'grid';
+    };
+
+    let interimBuffer = '';
+    let finalBuffer = '';
+    const EXIT_PHRASE = 'bye chatbot';
+    const EXIT_PHRASE_NORMALIZED = EXIT_PHRASE.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    recog.onresult = (e) => {
+      if (commandTimeout) clearTimeout(commandTimeout);
+
+      interimBuffer = '';
+      let newFinal = '';
+      
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const txt = r[0].transcript;
+        if (r.isFinal) newFinal += txt + ' ';
+        else interimBuffer = txt;
+      }
+      
+      finalBuffer += newFinal;
+      const combined = (finalBuffer + ' ' + interimBuffer).trim();
+      const combinedNorm = combined.toLowerCase().replace(/[^a-z0-9]/g, '');
+      setLive(combined.toLowerCase());
+
+      // --- Wake Word Detection ---
+      if (mode === 'wake' && combinedNorm.includes(WAKE_PHRASE_NORMALIZED)) {
+        addLog('ok', 'Wake word detected.');
+        recognitionStoppedIntentionally = true;
+        recog.stop();
+        
+        finalBuffer = '';
+        interimBuffer = '';
+        setLive('…');
+
+        speak('How can I help you?').finally(() => {
+          setMode('command');
+        });
+        return;
+      }
+
+      // --- Command Detection (with silence timeout) ---
+      if (mode === 'command') {
+        const combinedCommand = (finalBuffer + ' ' + interimBuffer).trim();
+
+        if (combinedCommand.length > 0) {
+            commandTimeout = setTimeout(() => {
+                if (mode !== 'command') return;
+
+                const finalCommand = (finalBuffer + ' ' + interimBuffer).trim();
+                if (finalCommand.length <= 2) {
+                    setMode('command');
+                    return;
+                }
+
+                const finalCommandNorm = finalCommand.toLowerCase().replace(/[^a-z0-9]/g, '');
+                finalBuffer = '';
+                interimBuffer = '';
+                setLive('…');
+
+                if (finalCommandNorm.includes(EXIT_PHRASE_NORMALIZED)) {
+                    addLog('ok', 'Exit phrase detected.');
+                    speak('Goodbye!').finally(() => { setMode('wake'); });
+                } else {
+                    addLog('state', 'Handling command: "' + finalCommand + '"');
+                    handleCommand(finalCommand);
+                }
+            }, 1200); // 1.2 second pause
+        }
+      }
+    };
+
+    // ====== Command Handler Refactor ======
+    // This new structure makes the code shorter and easier to manage, as requested.
+    const commandHandlers = [
+      // --- App UI Controls ---
+      {
+        triggers: ['volume up', 'louder'], type: 'includes',
+        handler: async () => {
+          speechVolume = Math.min(1, speechVolume + 0.2);
+          await speak(`Volume set to ${Math.round(speechVolume * 100)}%`);
+        }
+      },
+      {
+        triggers: ['volume down', 'quieter'], type: 'includes',
+        handler: async () => {
+          speechVolume = Math.max(0, speechVolume - 0.2);
+          await speak(`Volume set to ${Math.round(speechVolume * 100)}%`);
+        }
+      },
+      { triggers: ['mute'], type: 'includes', handler: async () => { speechVolume = 0; await speak('Muted.'); } },
+      { triggers: ['max volume', 'full volume'], type: 'includes', handler: async () => { speechVolume = 1; await speak('Volume set to max.'); } },
+      {
+        triggers: ['brightness up', 'brighter'], type: 'includes',
+        handler: async () => {
+          appBrightness = Math.min(2, appBrightness + 0.25);
+          setAppBrightness();
+          await speak('Brightness increased.');
+        }
+      },
+      {
+        triggers: ['brightness down', 'dimmer'], type: 'includes',
+        handler: async () => {
+          appBrightness = Math.max(0.5, appBrightness - 0.25);
+          setAppBrightness();
+          await speak('Brightness decreased.');
+        }
+      },
+      {
+        triggers: ['brightness normal', 'reset brightness'], type: 'includes',
+        handler: async () => {
+          appBrightness = 1.0;
+          setAppBrightness();
+          await speak('Brightness reset.');
+        }
+      },
+      {
+        triggers: ['font size up', 'bigger text'], type: 'includes',
+        handler: async () => {
+          fontSizeModifier = Math.min(5, fontSizeModifier + 1);
+          setAppFontSize();
+          await speak('Font size increased.');
+        }
+      },
+      {
+        triggers: ['font size down', 'smaller text'], type: 'includes',
+        handler: async () => {
+          fontSizeModifier = Math.max(-3, fontSizeModifier - 1);
+          setAppFontSize();
+          await speak('Font size decreased.');
+        }
+      },
+      {
+        triggers: ['font size normal', 'reset font'], type: 'includes',
+        handler: async () => {
+          fontSizeModifier = 0;
+          setAppFontSize();
+          await speak('Font size reset.');
+        }
+      },
+      
+      // --- App Functionality ---
+      {
+        triggers: ['time'], type: 'includes',
+        handler: async (lower) => {
+          if (lower.includes('timer')) return false; // Let Gemini handle "set a timer"
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          addLog('ok', 'Time requested');
+          await speak(`The time is ${timeStr}`);
+          return true;
+        }
+      },
+      {
+        triggers: ['date', 'day is it'], type: 'includes',
+        handler: async () => {
+          const now = new Date();
+          const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+          addLog('ok', 'Date requested');
+          await speak(`Today is ${dateStr}`);
+        }
+      },
+      {
+        triggers: ['play '], type: 'startsWith',
+        handler: async (lower, trigger) => {
+          if (!lower.includes(' on youtube')) return false; // Not a youtube command
+          const query = lower.substring(trigger.length).replace(/ on youtube$/,'').trim();
+          const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+          addLog('ok', `Searching YouTube for: ${query}`);
+          window.open(url, '_blank');
+          await speak(`Searching for ${query} on YouTube`);
+          return true;
+        }
+      },
+      {
+        triggers: ['open ', 'go to ', 'navigate to '], type: 'startsWith',
+        handler: async (lower, trigger) => {
+          const site = lower.substring(trigger.length).trim();
+          const spokenSite = site;
+          
+          // New URL logic
+          let url = site.replace(/\sdot\s/g, '.').replace(/\scom/g, '.com').replace(/\s/g, '');
+          if (!/\.[a-z]{2,}$/i.test(url)) {
+            url += '.com';
+          }
+          if (!/^https?:\/\//.test(url)) {
+            url = 'https://' + url;
+          }
+          
+          addLog('ok', `Opening ${url}`);
+          window.open(url, '_blank');
+          await speak(`Opening ${spokenSite}`);
+        }
+      },
+      {
+        triggers: ['search ', 'look up ', 'google '], type: 'startsWith',
+        handler: async (lower, trigger) => {
+          const query = lower.substring(trigger.length).trim();
+          const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+          addLog('ok', `Searching: ${query}`);
+          window.open(url, '_blank');
+          await speak(`Searching for ${query}`);
+        }
+      }
+    ];
+
+    async function handleCommand(command){
+      const lower = command.toLowerCase().trim();
+      setMode('processing');
+
+      try {
+        // Loop through handlers
+        for (const cmd of commandHandlers) {
+          const trigger = cmd.triggers.find(t => (cmd.type === 'includes' ? lower.includes(t) : lower.startsWith(t)));
+          
+          if (trigger) {
+            const result = await cmd.handler(lower, trigger);
+            if (result !== false) { // Handler handled it
+              return; // Exit function
+            }
+            // If result was false, it means the trigger matched but conditions didn't (e.g. "time" vs "timer")
+            // So we continue to the next handler.
+          }
+        }
+
+        // --- FALLBACK TO GEMINI ---
+        // If no handler caught the command, send it to Gemini
+        addLog('state', 'AI handling: "' + command + '"');
+        const reply = await askGemini(command);
+        addLog('ok', 'Gemini: ' + reply);
+        await speak(reply);
+
+      } catch (err) {
+        addLog('err', 'Error handling command: ' + err.message);
+        await speak('Sorry, there was an error.').catch(e => addLog('err', 'Fallback speech failed.'));
+      } finally {
+       setMode('command'); // Always return to command mode
+      }
+    }
+
+    // ====== Start/Restart recognition safely ======
+    async function safeStart(){
+      if (recognizing || (mode !== 'wake' && mode !== 'command')) {
+        return;
+      }
+      
+      recognitionStoppedIntentionally = false;
+      try {
+        recog.start();
+      } catch (err) {
+        addLog('warn', 'Mic start failed: ' + err.message + '. Retrying…');
+        setTimeout(() => {
+          if ((mode === 'wake' || mode === 'command') && !recognitionStoppedIntentionally) {
+            try { recog.start(); } catch (e) { addLog('err', 'Mic retry failed: ' + e.message); }
+          }
+        }, 800);
+      }
+    }
+    
+    // ====== Grant permissions and start ======
+    async function grantAndStart() {
+        try {
+            initAudio();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(t => t.stop());
+            addLog('ok', 'Audio permission granted.');
+            overlay.style.display = 'none';
+            setMode('wake');
+        } catch (e) {
+            addLog('err', 'Microphone permission denied: ' + e.message);
+            overlay.style.display = 'grid';
+            overlay.querySelector('.card p').textContent = 'Microphone permission was denied. Please allow microphone access in your browser settings and refresh the page.';
+            overlay.querySelector('#startBtn').disabled = true;
+        }
+    }
+
+    // ====== First run: Always show overlay to get user gesture ======
+    window.addEventListener('load', () => {
+      addLog('state', 'Ready. Click "Enable Microphone" to start.');
+      overlay.style.display = 'grid'; 
+      stateText.textContent = 'waiting for start';
+      stateText.className = 'badge warn';
+    });
+    
+    startBtn.addEventListener('click', grantAndStart);
+    
+    // ====== Tap to Interrupt / Manual Activate ======
+    mic.addEventListener('click', () => {
+      initAudio();
+      
+      if (speechSynthesis.speaking) {
+        addLog('state', 'User interrupted speech via click.');
+        speechSynthesis.cancel(); 
+        // onend will fire, which resolves promise, which runs 'finally' in handleCommand, which sets mode to 'command'
+      } else if (mode === 'wake') {
+        addLog('ok', 'Manual activation (click).');
+        if (recognizing) {
+          recognitionStoppedIntentionally = true;
+          recog.stop();
+        }
+        finalBuffer = '';
+        interimBuffer = '';
+        setLive('…');
+        speak('How can I help you?').finally(() => {
+          setMode('command');
+        });
+      }
+    });
+
+    window.addEventListener('keydown', (e)=>{ 
+      if(e.key === 'Escape'){ 
+        speechSynthesis.cancel(); 
+        addLog('state','Speech cancelled'); 
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Color Vision Demo — Premium UI</title>
+<style>
+  body{
+    font-family:Poppins,Arial,sans-serif;
+    margin:0;padding:0;
+    background:linear-gradient(135deg,#1e293b,#0f172a);
+    color:#e2e8f0;
+  }
+  header{
+    padding:28px 30px;
+    background:linear-gradient(135deg,#2563eb,#7dd3fc);
+    color:white;
+    text-align:center;
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    border-bottom:1px solid rgba(255,255,255,0.25);
+  }
+
+  .controls{
+    padding:25px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    justify-content:center;
+  }
+  .btn{
+    padding:12px 20px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+    background:#334155;
+    color:#e2e8f0;
+    transition:0.3s;
+  }
+  .btn:hover{
+    background:#475569;
+    transform:translateY(-3px);
+  }
+
+  .mockup-grid{
+    width:90%;
+    max-width:1000px;
+    margin:50px auto;
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:28px;
+  }
+  .mockup-card{
+    background:#1e293b;
+    padding:18px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.1);
+    text-align:center;
+    transition:0.35s;
+  }
+  .mockup-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 10px 28px rgba(0,0,0,0.45);
+  }
+  .mockup-card img{
+    width:100%;
+    border-radius:10px;
+    margin-bottom:12px;
+  }
+  .mockup-card span{
+    font-size:14px;
+    color:#94a3b8;
+  }
+
+  .section-text{
+    max-width:900px;
+    margin:20px auto 40px;
+    text-align:center;
+    font-size:17px;
+    color:#cbd5e1;
+    padding:0 18px;
+  }
+</style>
+</head>
+<body>
+<header>Color Vision Filters Demo</header>
+
+<div class="controls">
+  <button class="btn" onclick="setFilter('none')">Normal</button>
+  <button class="btn" onclick="setFilter('deuteranopia')">Deuteranopia</button>
+  <button class="btn" onclick="setFilter('protanopia')">Protanopia</button>
+  <button class="btn" onclick="setFilter('tritanopia')">Tritanopia</button>
+  <button class="btn" onclick="setFilter('monochrome')">Monochrome</button>
+  <button class="btn" onclick="setFilter('highcontrast')">High Contrast</button>
+</div>
+
+<div class="section-text" id="infoText"></div>
+
+<div id="demoArea" class="mockup-grid">
+  <div class="mockup-card">
+    <img src="https://picsum.photos/seed/ui1/600/400" alt="UI Card 1" />
+  </div>
+  <div class="mockup-card">
+    <img src="https://picsum.photos/seed/ui2/600/400" alt="UI Card 2" />
+  </div>
+  <div class="mockup-card">
+    <img src="https://picsum.photos/seed/ui3/600/400" alt="UI Card 3" />
+  </div>
+  <div class="mockup-card">
+    <img src="https://picsum.photos/seed/ui4/600/400" alt="UI Card 4" />
+  </div>
+</div>
+
+<script>
+function setFilter(mode){
+  let filterStyle = "none";
+  let info = "";
+
+  switch(mode){
+    case "deuteranopia":
+      filterStyle = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"><filter id=\"d\"><feColorMatrix type=\"matrix\" values=\"0.625 0.375 0 0 0 0.7 0.3 0 0 0 0 0 1 0 0 0 0 0 1 0\"/></filter></svg>#d')";
+      info = "<b>Deuteranopia:</b> Reduced sensitivity to green light. Colors involving green and red may appear similar, making UI elements harder to distinguish.";
+      break;
+    case "protanopia":
+      filterStyle = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"><filter id=\"p\"><feColorMatrix type=\"matrix\" values=\"0.567 0.433 0 0 0 0.558 0.442 0 0 0 0 0.242 0.758 0 0 0 0 0 1 0\"/></filter></svg>#p')";
+      info = "<b>Protanopia:</b> Reduced sensitivity to red light. Red tones appear darker and may blend into browns or greens.";
+      break;
+    case "tritanopia":
+      filterStyle = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"><filter id=\"t\"><feColorMatrix type=\"matrix\" values=\"0.95 0.05 0 0 0 0 0.433 0.567 0 0 0 0.475 0.525 0 0 0 0 0 1 0\"/></filter></svg>#t')";
+      info = "<b>Tritanopia:</b> Difficulty distinguishing blue and yellow hues. Interfaces with blue highlights may appear washed or faded.";
+      break;
+    case "monochrome":
+      filterStyle = "grayscale(100%)";
+      info = "<b>Monochrome Vision:</b> Complete removal of color, resulting in grayscale-only perception. Contrast becomes crucial for usability.";
+      break;
+    case "highcontrast":
+      filterStyle = "contrast(185%) brightness(115%)";
+      info = "<b>High Contrast:</b> Enhances visibility by intensifying differences between foreground and background elements.";
+      break;
+    default:
+      filterStyle = "none";
+      info = "";
+  }
+
+  document.getElementById("demoArea").style.filter = filterStyle;
+  document.getElementById("infoText").innerHTML = info;
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1067 @@
+<!-- 
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standalone Speech Companion</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #2a2a2a;
+            --text: #f0f0f0;
+            --primary: #007aff;
+            --muted: #888;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 95vh;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--panel);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            color: var(--primary);
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #333;
+            color: var(--text);
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+        select, button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        select {
+            background: #333;
+            color: var(--text);
+            margin-bottom: 15px;
+            border: 1px solid #444;
+        }
+        button#speakBtn {
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button#speakBtn:hover {
+            background: #0056b3;
+        }
+        button#speakBtn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .quick-replies {
+            margin-top: 25px;
+            border-top: 1px solid #444;
+            padding-top: 20px;
+        }
+        .quick-replies h3 {
+            margin-top: 0;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .reply-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .reply-buttons button {
+            width: auto;
+            background: #444;
+            color: var(--text);
+            padding: 8px 14px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .reply-buttons button:hover {
+            background: #555;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .controls label {
+            font-size: 14px;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 5px;
+        }
+        .controls input[type="range"] {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Standalone Speech Companion</h2>
+        
+        <label for="voiceSelect" style="font-size: 14px; color: var(--muted); margin-bottom: 5px; display: block;">Select Voice (from your OS):</label>
+        <select id="voiceSelect">
+            <option value="">Loading voices...</option>
+        </select>
+        
+        <textarea id="textInput" placeholder="Type what you want to say..."></textarea>
+        
+        <div class="controls">
+            <div>
+                <label for="rate">Speed (<span id="rateLabel">1</span>)</label>
+                <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+            </div>
+            <div>
+                <label for="pitch">Pitch (<span id="pitchLabel">1</span>)</label>
+                <input type="range" id="pitch" min="0" max="2" value="1" step="0.1">
+            </div>
+        </div>
+
+        <button id="speakBtn">Speak</button>
+        
+        <div class="quick-replies">
+            <h3>Quick Replies</h3>
+            <div class="reply-buttons">
+                <button data-text="Hello, how are you?">Hello, how are you?</button>
+                <button data-text="Yes, that sounds good.">Yes, that sounds good.</button>
+                <button data-text="No, thank you.">No, thank you.</button>
+                <button data-text="Can you please repeat that?">Can you please repeat that?</button>
+                <button data-text="¡Hola! ¿Cómo estás?">¡Hola! ¿Cómo estás?</button>
+                <button data-text="Bonjour, ça va?">Bonjour, ça va?</button>
+                <button data-text="Hallo, wie geht's?">Hallo, wie geht's?</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const speakBtn = document.getElementById('speakBtn');
+        const rateInput = document.getElementById('rate');
+        const pitchInput = document.getElementById('pitch');
+        const rateLabel = document.getElementById('rateLabel');
+        const pitchLabel = document.getElementById('pitchLabel');
+        const quickReplies = document.querySelector('.reply-buttons');
+
+        let voices = [];
+        const synth = window.speechSynthesis;
+
+        function populateVoiceList() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = ''; // Clear existing options
+            
+            if (voices.length === 0) {
+                voiceSelect.innerHTML = '<option value="">No voices available</option>';
+                return;
+            }
+
+            let defaultLangVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-lang', voice.lang);
+                option.setAttribute('data-name', voice.name);
+                if (voice.name === defaultLangVoice.name) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        synth.onvoiceschanged = populateVoiceList;
+        if (synth.getVoices().length > 0) {
+            populateVoiceList();
+        }
+
+        function speak() {
+            if (synth.speaking) {
+                synth.cancel(); 
+            }
+            if (textInput.value === '') {
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(textInput.value);
+            
+            const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                // THIS IS THE NEW LINE
+                utterance.lang = selectedVoice.lang;
+            }
+
+            utterance.rate = rateInput.value;
+            utterance.pitch = pitchInput.value;
+
+            utterance.onend = () => {
+                speakBtn.disabled = false;
+                speakBtn.textContent = 'Speak';
+            };
+            
+            speakBtn.disabled = true;
+            speakBtn.textContent = 'Speaking...';
+            synth.speak(utterance);
+        }
+
+        speakBtn.addEventListener('click', speak);
+        
+        quickReplies.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const text = e.target.getAttribute('data-text');
+                textInput.value = text;
+                
+                // Try to find a voice that matches the text's likely language
+                let langCode = 'en'; // Default
+                if (text.includes('¡Hola!')) langCode = 'es';
+                if (text.includes('Bonjour')) langCode = 'fr';
+                if (text.includes('Hallo')) langCode = 'de';
+
+                const matchingVoice = voices.find(v => v.lang.startsWith(langCode));
+                if (matchingVoice) {
+                    // Find the option in the dropdown and select it
+                    const option = voiceSelect.querySelector(`option[data-name="${matchingVoice.name}"]`);
+                    if (option) {
+                        option.selected = true;
+                    }
+                }
+                
+                speak(); // Speak immediately
+            }
+        });
+
+        rateInput.addEventListener('input', () => rateLabel.textContent = rateInput.value);
+        pitchInput.addEventListener('input', () => pitchLabel.textContent = pitchInput.value);
+
+    </script>
+</body>
+</html> -->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Communication Board</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #2a2a2a;
+            --panel-light: #333;
+            --text: #f0f0f0;
+            --primary: #007aff;
+            --primary-light: #0056b3;
+            --accent: #34c759;
+            --danger: #ff3b30;
+            --shadow: rgba(0,0,0,0.3);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 12px;
+            overscroll-behavior: none;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 24px);
+        }
+
+        /* --- 1. Sentence Strip --- */
+        .sentence-strip {
+            display: flex;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+        #sentenceInput {
+            flex-grow: 1;
+            padding: 14px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: var(--panel-light);
+            color: var(--text);
+        }
+        .strip-btn {
+            padding: 0 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .strip-btn:active { transform: scale(0.95); }
+        #speakBtn { background: var(--accent); color: white; }
+        #clearBtn { background: var(--danger); color: white; }
+
+        /* --- 2. Main Controls --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: var(--panel);
+            border-radius: 8px;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+        #voiceSelect {
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        /* Toggle Switch for Edit Mode */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input { display: none; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #555;
+            transition: .3s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* --- 3. Phrase Grid --- */
+        #phraseGrid {
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            overflow-y: auto; /* Allow grid to scroll */
+            padding: 10px;
+            background: var(--panel);
+            border-radius: 8px;
+        }
+        .phrase-btn, .add-btn {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            font-size: 1em;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            background: var(--panel-light);
+            color: var(--text);
+            cursor: pointer;
+            padding: 8px;
+            word-break: break-word;
+            transition: background 0.2s;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .phrase-btn:hover { background: #4a4a4a; }
+        .add-btn {
+            background: transparent;
+            border: 2px dashed var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 2.5em;
+            box-shadow: none;
+        }
+        .add-btn:hover { background: var(--primary-light); color: white; }
+        
+        /* Edit Mode Styling */
+        .delete-btn {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 24px;
+            height: 24px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 24px;
+            text-align: center;
+        }
+        /* When .container is in edit-mode, show delete buttons */
+        .container.edit-mode .delete-btn {
+            display: block;
+        }
+        .container.edit-mode .phrase-btn {
+            animation: wiggle 0.2s infinite ease-in-out alternate;
+        }
+        .container.edit-mode .add-btn { display: grid; place-items:center; }
+        .container:not(.edit-mode) .add-btn { display: none; }
+
+        @keyframes wiggle {
+            from { transform: rotate(-1deg); }
+            to { transform: rotate(1deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container" id="container">
+
+        <div class="sentence-strip">
+            <input type="text" id="sentenceInput" placeholder="Click buttons below to build a sentence...">
+            <button id="speakBtn" class="strip-btn" title="Speak Sentence">▶</button>
+            <button id="clearBtn" class="strip-btn" title="Clear Sentence">X</button>
+        </div>
+
+        <div class="controls">
+            <label>
+                Voice:
+                <select id="voiceSelect"><option>Loading...</option></select>
+            </label>
+            <label>
+                Edit Mode:
+                <label class="toggle-switch">
+                    <input type="checkbox" id="editToggle">
+                    <span class="slider"></span>
+                </label>
+            </label>
+        </div>
+
+        <div id="phraseGrid">
+            </div>
+
+    </div>
+
+    <script>
+        // --- 1. Get All Elements ---
+        const synth = window.speechSynthesis;
+        const container = document.getElementById('container');
+        const sentenceInput = document.getElementById('sentenceInput');
+        const speakBtn = document.getElementById('speakBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const editToggle = document.getElementById('editToggle');
+        const phraseGrid = document.getElementById('phraseGrid');
+
+        let voices = [];
+        let phrases = []; // This will hold our phrase data
+
+        // --- 2. Default Data ---
+        const defaultPhrases = [
+            "Hello", "Goodbye", "Yes", "No", "Thank you", "Please",
+            "I'm hungry", "I'm thirsty", "I need help", "Bathroom",
+            "I feel...", "happy", "sad", "tired", "pain",
+            "I want...", "water", "food", "to go outside"
+        ];
+        
+        // --- 3. Core Functions ---
+
+        /** Loads voices into the dropdown */
+        function loadVoices() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = '';
+            const defaultLang = 'en';
+            let defaultVoice = voices.find(v => v.lang.startsWith(defaultLang)) || voices[0];
+            
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-name', voice.name);
+                option.setAttribute('data-lang', voice.lang);
+                if (voice.name === defaultVoice.name) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        /** Loads phrases from localStorage or uses defaults */
+        function loadPhrases() {
+            const savedPhrases = localStorage.getItem('aacPhrases');
+            if (savedPhrases) {
+                phrases = JSON.parse(savedPhrases);
+            } else {
+                phrases = defaultPhrases;
+                savePhrases(); // Save the defaults for next time
+            }
+        }
+
+        /** Saves the current 'phrases' array to localStorage */
+        function savePhrases() {
+            localStorage.setItem('aacPhrases', JSON.stringify(phrases));
+        }
+
+        /** Re-draws the entire grid based on the 'phrases' array */
+        function renderGrid() {
+            phraseGrid.innerHTML = ''; // Clear the grid
+            
+            // Add all phrase buttons
+            phrases.forEach((phrase, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'phrase-btn';
+                btn.textContent = phrase;
+                btn.setAttribute('data-index', index);
+                
+                // Add delete button (only visible in edit mode)
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'x';
+                btn.appendChild(deleteBtn);
+                
+                phraseGrid.appendChild(btn);
+            });
+
+            // Add the "Add New" button
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-btn';
+            addBtn.textContent = '+';
+            phraseGrid.appendChild(addBtn);
+        }
+
+        /** Speaks the text in the sentence bar */
+        function speakSentence() {
+            const text = sentenceInput.value;
+            if (synth.speaking) {
+                synth.cancel();
+            }
+            if (text === '') return;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                utterance.lang = selectedVoice.lang;
+            }
+            
+            synth.speak(utterance);
+        }
+
+        // --- 4. Event Handlers ---
+
+        /** Handles all clicks on the phrase grid */
+        function onGridClick(e) {
+            const target = e.target;
+            const isEditMode = container.classList.contains('edit-mode');
+
+            if (target.className === 'delete-btn' && isEditMode) {
+                // --- Delete a Phrase ---
+                const phraseBtn = target.closest('.phrase-btn');
+                const index = parseInt(phraseBtn.getAttribute('data-index'));
+                if (confirm(`Delete "${phrases[index]}"?`)) {
+                    phrases.splice(index, 1); // Remove from array
+                    savePhrases();
+                    renderGrid();
+                }
+            } else if (target.className === 'add-btn' && isEditMode) {
+                // --- Add a New Phrase ---
+                const newPhrase = prompt('What phrase do you want to add?');
+                if (newPhrase) {
+                    phrases.push(newPhrase);
+                    savePhrases();
+                    renderGrid();
+                }
+            } else if (target.classList.contains('phrase-btn') && !isEditMode) {
+                // --- Add to Sentence Strip ---
+                const text = target.textContent.replace('x', ''); // Remove 'x' from delete btn
+                sentenceInput.value += (sentenceInput.value ? ' ' : '') + text;
+            }
+        }
+
+        /** Toggle Edit Mode */
+        function toggleEditMode() {
+            container.classList.toggle('edit-mode', editToggle.checked);
+            if (editToggle.checked) {
+                sentenceInput.value = "EDIT MODE: Click 'x' to delete, or '+' to add.";
+            } else {
+                sentenceInput.value = "";
+            }
+        }
+
+        // --- 5. Initialization ---
+        
+        function init() {
+            // Load voices
+            synth.onvoiceschanged = loadVoices;
+            if (synth.getVoices().length > 0) {
+                loadVoices();
+            }
+            
+            // Load phrases and build grid
+            loadPhrases();
+            renderGrid();
+
+            // Attach event listeners
+            phraseGrid.addEventListener('click', onGridClick);
+            editToggle.addEventListener('change', toggleEditMode);
+            speakBtn.addEventListener('click', speakSentence);
+            clearBtn.addEventListener('click', () => { sentenceInput.value = ''; });
+            sentenceInput.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') speakSentence();
+            });
+        }
+        
+        init(); // Start the app
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+<!-- 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Communication Board</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #2a2a2a;
+            --panel-light: #333;
+            --text: #f0f0f0;
+            --primary: #007aff;
+            --primary-light: #0056b3;
+            --accent: #34c759;
+            --danger: #ff3b30;
+            --shadow: rgba(0,0,0,0.3);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 12px;
+            overscroll-behavior: none;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 24px);
+        }
+
+        /* --- 1. Sentence Strip --- */
+        .sentence-strip {
+            display: flex;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+        #sentenceInput {
+            flex-grow: 1;
+            padding: 14px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: var(--panel-light);
+            color: var(--text);
+        }
+        .strip-btn {
+            padding: 0 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .strip-btn:active { transform: scale(0.95); }
+        #speakBtn { background: var(--accent); color: white; }
+        #clearBtn { background: var(--danger); color: white; }
+
+        /* --- 2. Main Controls --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: var(--panel);
+            border-radius: 8px;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+        #voiceSelect {
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        /* Toggle Switch for Edit Mode */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input { display: none; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #555;
+            transition: .3s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* --- 3. Phrase Grid --- */
+        #phraseGrid {
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            overflow-y: auto; /* Allow grid to scroll */
+            padding: 10px;
+            background: var(--panel);
+            border-radius: 8px;
+        }
+        .phrase-btn, .add-btn {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            font-size: 1em;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            background: var(--panel-light);
+            color: var(--text);
+            cursor: pointer;
+            padding: 8px;
+            word-break: break-word;
+            transition: background 0.2s;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .phrase-btn:hover { background: #4a4a4a; }
+        .add-btn {
+            background: transparent;
+            border: 2px dashed var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 2.5em;
+            box-shadow: none;
+        }
+        .add-btn:hover { background: var(--primary-light); color: white; }
+        
+        /* Edit Mode Styling */
+        .delete-btn {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 24px;
+            height: 24px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 24px;
+            text-align: center;
+        }
+        /* When .container is in edit-mode, show delete buttons */
+        .container.edit-mode .delete-btn {
+            display: block;
+        }
+        .container.edit-mode .phrase-btn {
+            animation: wiggle 0.2s infinite ease-in-out alternate;
+        }
+        .container.edit-mode .add-btn { display: grid; place-items:center; }
+        .container:not(.edit-mode) .add-btn { display: none; }
+
+        @keyframes wiggle {
+            from { transform: rotate(-1deg); }
+            to { transform: rotate(1deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container" id="container">
+
+        <div class="sentence-strip">
+            <input type="text" id="sentenceInput" placeholder="Click buttons below to build a sentence...">
+            <button id="speakBtn" class="strip-btn" title="Speak Sentence">▶</button>
+            <button id="clearBtn" class="strip-btn" title="Clear Sentence">X</button>
+        </div>
+
+        <div class="controls">
+            <label>
+                Voice:
+                <select id="voiceSelect"><option>Loading...</option></select>
+            </label>
+            <label>
+                Edit Mode:
+                <label class="toggle-switch">
+                    <input type="checkbox" id="editToggle">
+                    <span class="slider"></span>
+                </label>
+            </label>
+        </div>
+
+        <div id="phraseGrid">
+            </div>
+
+    </div>
+
+    <script>
+        // --- 1. Get All Elements ---
+        const synth = window.speechSynthesis;
+        const container = document.getElementById('container');
+        const sentenceInput = document.getElementById('sentenceInput');
+        const speakBtn = document.getElementById('speakBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const editToggle = document.getElementById('editToggle');
+        const phraseGrid = document.getElementById('phraseGrid');
+
+        let voices = [];
+        let phrases = []; // This will hold our phrase data
+
+        // --- 2. Default Data ---
+        const defaultPhrases = [
+            "Hello", "Goodbye", "Yes", "No", "Thank you", "Please",
+            "I'm hungry", "I'm thirsty", "I need help", "Bathroom",
+            "I feel...", "happy", "sad", "tired", "pain",
+            "I want...", "water", "food", "to go outside"
+        ];
+        
+        // --- 3. Core Functions ---
+
+        /** Loads voices into the dropdown */
+        function loadVoices() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = '';
+            const defaultLang = 'en';
+            let defaultVoice = voices.find(v => v.lang.startsWith(defaultLang)) || voices[0];
+            
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-name', voice.name);
+                option.setAttribute('data-lang', voice.lang);
+                if (voice.name === defaultVoice.name) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        /** Loads phrases from localStorage or uses defaults */
+        function loadPhrases() {
+            const savedPhrases = localStorage.getItem('aacPhrases');
+            if (savedPhrases) {
+                phrases = JSON.parse(savedPhrases);
+            } else {
+                phrases = defaultPhrases;
+                savePhrases(); // Save the defaults for next time
+            }
+        }
+
+        /** Saves the current 'phrases' array to localStorage */
+        function savePhrases() {
+            localStorage.setItem('aacPhrases', JSON.stringify(phrases));
+        }
+
+        /** Re-draws the entire grid based on the 'phrases' array */
+        function renderGrid() {
+            phraseGrid.innerHTML = ''; // Clear the grid
+            
+            // Add all phrase buttons
+            phrases.forEach((phrase, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'phrase-btn';
+                btn.textContent = phrase;
+                btn.setAttribute('data-index', index);
+                
+                // Add delete button (only visible in edit mode)
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'x';
+                btn.appendChild(deleteBtn);
+                
+                phraseGrid.appendChild(btn);
+            });
+
+            // Add the "Add New" button
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-btn';
+            addBtn.textContent = '+';
+            phraseGrid.appendChild(addBtn);
+        }
+
+        // --- 4. Event Handlers ---
+
+        /** Speaks a given text string */
+        function speak(text) {
+            if (synth.speaking) {
+                synth.cancel(); // Stop any current speech
+            }
+            if (text === '') return;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                utterance.lang = selectedVoice.lang;
+            }
+            
+            synth.speak(utterance);
+        }
+
+        /** Speaks the text currently in the sentence bar */
+        function speakSentence() {
+            speak(sentenceInput.value); // Just call our new speak function
+        }
+
+        /** Handles all clicks on the phrase grid */
+        function onGridClick(e) {
+            const target = e.target;
+            const isEditMode = container.classList.contains('edit-mode');
+
+            if (target.className === 'delete-btn' && isEditMode) {
+                // --- Delete a Phrase ---
+                const phraseBtn = target.closest('.phrase-btn');
+                const index = parseInt(phraseBtn.getAttribute('data-index'));
+                if (confirm(`Delete "${phrases[index]}"?`)) {
+                    phrases.splice(index, 1); // Remove from array
+                    savePhrases();
+                    renderGrid();
+                }
+            } else if (target.className === 'add-btn' && isEditMode) {
+                // --- Add a New Phrase ---
+                const newPhrase = prompt('What phrase do you want to add?');
+                if (newPhrase) {
+                    phrases.push(newPhrase);
+                    savePhrases();
+                    renderGrid();
+                }
+            } else if (target.classList.contains('phrase-btn') && !isEditMode) {
+                // --- Add to Sentence Strip AND Speak Confirmation ---
+                const text = target.textContent.replace('x', ''); // Remove 'x'
+                
+                // 1. Add to sentence strip (same as before)
+                sentenceInput.value += (sentenceInput.value ? ' ' : '') + text;
+                
+                // 2. Speak the phrase immediately (NEW!)
+                speak(text);
+            }
+        }
+
+        /** Toggle Edit Mode */
+        function toggleEditMode() {
+            container.classList.toggle('edit-mode', editToggle.checked);
+            if (editToggle.checked) {
+                sentenceInput.value = "EDIT MODE: Click 'x' to delete, or '+' to add.";
+            } else {
+                sentenceInput.value = "";
+            }
+        }
+
+        // --- 5. Initialization ---
+        
+        function init() {
+            // Load voices
+            synth.onvoiceschanged = loadVoices;
+            if (synth.getVoices().length > 0) {
+                loadVoices();
+            }
+            
+            // Load phrases and build grid
+            loadPhrases();
+            renderGrid();
+
+            // Attach event listeners
+            phraseGrid.addEventListener('click', onGridClick);
+            editToggle.addEventListener('change', toggleEditMode);
+            speakBtn.addEventListener('click', speakSentence);
+            clearBtn.addEventListener('click', () => { sentenceInput.value = ''; });
+            sentenceInput.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') speakSentence();
+            });
+        }
+        
+        init(); // Start the app
+    </script>
+</body>
+</html> -->

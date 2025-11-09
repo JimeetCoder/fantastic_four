@@ -1,0 +1,105 @@
+/* Partial Blindness stylesheet
+   Goals: bolder UI, brighter colors, stronger outlines, larger fonts, improved contrast
+   This file is injected into pages when the user enables Partial Blindness mode.
+*/
+
+:root {
+    --pb-scale-font: 1.12;
+    /* scale up base size */
+    --pb-border-strong: 3px;
+    --pb-focus-color: #ffcc00;
+    --pb-background-boost: rgba(255, 255, 255, 0.06);
+}
+
+/* apply broadly - make text bolder and larger */
+html,
+body,
+p,
+span,
+a,
+li,
+label,
+button,
+input,
+select,
+textarea {
+    font-weight: 700 !important;
+    font-size: calc(1em * var(--pb-scale-font)) !important;
+    color: #000000 !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* increase contrast for background elements */
+body,
+.container,
+.main,
+header,
+nav,
+section,
+footer {
+    background-color: color-mix(in srgb, var(--pb-background-boost), white 90%) !important;
+}
+
+/* buttons and interactive controls - thicker borders and stronger contrast */
+button,
+input[type="button"],
+input[type="submit"],
+.btn {
+    border-width: var(--pb-border-strong) !important;
+    border-style: solid !important;
+    border-color: #222 !important;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* form controls easier to see */
+input,
+textarea,
+select {
+    border-width: 2px !important;
+    border-color: #222 !important;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+/* images: slightly boost sharpness/contrast but keep luminance reasonable */
+img,
+video {
+    filter: contrast(1.12) saturate(1.15) brightness(1.05) !important;
+}
+
+/* links - brighter and high-contrast underline */
+a {
+    color: #003399 !important;
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+}
+
+/* make focus outlines very visible */
+*:focus {
+    outline: 4px solid var(--pb-focus-color) !important;
+    outline-offset: 2px !important;
+}
+
+/* reduce translucency for UIs that use low-contrast overlays */
+[style*="opacity"],
+[style*="transparent"],
+[class*="overlay"],
+[class*="backdrop"] {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    opacity: 1 !important;
+}
+
+/* increase spacing slightly for readability */
+* {
+    letter-spacing: 0.02em !important;
+    line-height: 1.45 !important;
+}
+
+/* a small utility class to signal the mode is active */
+.partial-blindness-applied body::after {
+    content: '';
+}
+
+/* avoid breaking layout: only tweak visuals, not layout geometry */

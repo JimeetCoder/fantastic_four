@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Vision Assistant - Accessibility for Blind Users",
+  "version": "1.0.0",
+  "description": "AI-powered voice-controlled accessibility app with local LLM support via Ollama",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:11434/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "settings.html", "styles.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

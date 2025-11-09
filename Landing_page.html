@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccessiSuite — Universal Web Accessibility</title>
+
+<style>
+  :root{
+    --bg:#f8fafc;
+    --text:#0f172a;
+    --primary:#2563eb;
+    --accent:#38bdf8;
+    --shine:#8b5cf6;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;font-family:Poppins, Arial, sans-serif;}
+
+  body{background:var(--bg);color:var(--text);overflow-x:hidden;position:relative;}
+
+  /* Animated background blobs */
+  .blob{
+    position:absolute;
+    width:350px;height:350px;
+    background:radial-gradient(circle, var(--accent), var(--primary));
+    filter:blur(120px);opacity:0.30;
+    animation:float 9s infinite alternate ease-in-out;
+    z-index:-1;
+  }
+  .blob:nth-child(1){top:-150px;left:-150px;}
+  .blob:nth-child(2){bottom:-180px;right:-180px;animation-duration:13s;}
+  @keyframes float{from{transform:translateY(0);}to{transform:translateY(80px);} }
+
+  header{
+    padding:20px 40px;display:flex;justify-content:space-between;align-items:center;
+    background:#ffffffcc;backdrop-filter:blur(10px);
+    border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:10;
+  }
+
+  .logo{font-size:26px;font-weight:700;color:var(--primary);transition:0.3s;}
+  .logo:hover{transform:scale(1.05);}
+
+  nav a{margin-left:25px;color:var(--text);text-decoration:none;font-size:15px;position:relative;}
+  nav a:after{content:"";position:absolute;left:0;bottom:-3px;width:0%;height:2px;background:var(--primary);transition:0.3s;}
+  nav a:hover:after{width:100%;}
+
+  .hero{
+    padding:130px 20px;text-align:center;color:white;
+    background:linear-gradient(135deg, var(--primary), var(--accent), var(--shine));
+    background-size:300% 300%;animation:gradientShift 9s ease infinite;
+  }
+  @keyframes gradientShift{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+
+  .hero h1{font-size:52px;margin-bottom:16px;font-weight:700;}
+  .hero p{font-size:20px;max-width:750px;margin:0 auto;opacity:0.95;}
+
+  .btn{
+    display:inline-block;margin-top:38px;padding:18px 44px;background:#ffffff;color:var(--primary);
+    border-radius:50px;text-decoration:none;font-size:19px;font-weight:600;transition:0.3s;
+  }
+  .btn:hover{transform:translateY(-4px);box-shadow:0 10px 25px rgba(255,255,255,0.6);}
+
+  /* Features Section */
+  .section{padding:90px 20px;background:#ffffff;}
+  h2{text-align:center;margin-bottom:50px;font-size:36px;font-weight:700;}
+  
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:35px;max-width:1200px;margin:0 auto;
+  }
+
+  .card{
+    padding:35px 30px;
+    background:#f1f5f9;border-radius:16px;border:1px solid #e2e8f0;
+    text-align:left;transition:0.4s;
+    opacity:0;transform:translateY(60px);
+    min-height:270px;
+  }
+  .card.show{opacity:1;transform:translateY(0);}
+  .card:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 12px 28px rgba(0,0,0,0.09);}
+
+  .card-title{font-size:20px;font-weight:700;margin-bottom:12px;}
+  .card-desc{font-size:15.5px;line-height:1.55;color:#475569;}
+
+  /* Pricing CTA */
+  .center{text-align:center;margin-top:65px;}
+  .cta{
+    display:inline-block;padding:20px 50px;background:var(--primary);
+    border-radius:50px;color:white;text-decoration:none;font-size:20px;font-weight:600;transition:0.3s;
+  }
+  .cta:hover{background:#1e3a8a;transform:translateY(-4px);}
+
+  .footer{text-align:center;padding:40px;color:#64748b;font-size:15px;margin-top:90px;border-top:1px solid #e2e8f0;}
+</style>
+
+</head>
+<body>
+
+<div class="blob"></div>
+<div class="blob"></div>
+
+<header>
+  <div class="logo">AccessiSuite</div>
+  <nav>
+    <a href="#features">Features</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Accessibility Technology for Every Human</h1>
+  <p>A complete accessibility system that adapts to every type of user ability. Designed for real-world use, comfort, independence, and dignity.</p>
+  <a class="btn" href="pricing.html">Get Started</a>
+</section>
+
+<section id="features" class="section">
+  <h2>Powerful Features, Real Impact</h2>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-title">👁 AI Screen Narration</div>
+      <div class="card-desc">Reads any webpage aloud in real-time, describing text, buttons, images, and structure clearly. Ideal for low-vision users or users experiencing eye fatigue.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎙 Full Voice Control</div>
+      <div class="card-desc">Navigate websites using just your voice. Scroll, click, fill forms, switch tabs, or ask questions naturally, without memorizing complex commands.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧠 Head Tracking Cursor</div>
+      <div class="card-desc">Use your head movement to control the cursor with precision. Designed for users with limited arm mobility. Works with any webcam, no extra hardware.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👄 Mouth Gesture Clicking</div>
+      <div class="card-desc">Open your mouth slightly to simulate a click. Smooth, silent, discreet interaction that enables complete computer control without hands.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎨 Color Blindness Correction</div>
+      <div class="card-desc">Toggle presets for Deuteranopia, Protanopia, and Tritanopia. Adjusts hue, saturation, and contrast to restore visual clarity and distinguishability.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 Text & Contrast Enhancer</div>
+      <div class="card-desc">Boosts font size, line spacing, boldness, and sharpness while balancing contrast. Reduces strain and improves reading comfort for everyone.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 Natural Female Narrator</div>
+      <div class="card-desc">A warm, friendly voice assists you with guidance, notifications, and explanations. Tuned to sound calm and human-like, not mechanical.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🌗 Adaptive Visual Themes</div>
+      <div class="card-desc">Light Mode, Dark Mode, and High Contrast themes instantly adjust your environment for comfort, accessibility, and clarity at any time of day.</div>
+    </div>
+
+  </div>
+
+  <div class="center">
+    <a class="cta" href="pricing.html">See Plans & Options</a>
+  </div>
+
+</section>
+
+<div class="footer">
+  © 2025 AccessiSuite. All Rights Reserved. Empowering Equal Access to Technology Worldwide.
+</div>
+
+<script>
+  const cards=document.querySelectorAll('.card');
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{if(entry.isIntersecting) entry.target.classList.add('show');});
+  },{threshold:0.12});
+  cards.forEach(card=>observer.observe(card));
+</script>
+
+</body>
+</html>

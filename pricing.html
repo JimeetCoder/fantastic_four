@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccessiSuite Pricing</title>
+
+<style>
+  :root{
+    --primary:#2563eb;
+    --accent:#38bdf8;
+    --text:#0f172a;
+    --card:#ffffff;
+    --bg:#f1f5f9;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;font-family:Poppins, Arial, sans-serif;}
+  body{background:var(--bg);color:var(--text);padding:60px 20px;}
+
+  h1{text-align:center;margin-bottom:45px;font-size:42px;font-weight:700;}
+
+  .pricing-container{
+    max-width:1100px;margin:0 auto;display:grid;
+    grid-template-columns:1fr 1fr;gap:35px;
+  }
+
+  .plan{
+    background:var(--card);padding:40px 35px;border-radius:16px;
+    border:1px solid #d6dee9;transition:0.35s;
+  }
+  .plan:hover{transform:translateY(-6px);box-shadow:0 12px 28px rgba(0,0,0,0.12);}
+
+  .plan h2{font-size:28px;margin-bottom:15px;color:var(--primary);}
+  .plan p{font-size:15.5px;margin-bottom:25px;color:#475569;}
+
+  ul{list-style:none;margin-bottom:30px;}
+  ul li{
+    padding:8px 0;
+    font-size:15.5px;
+    display:flex;align-items:center;
+  }
+  ul li:before{
+    content:"✔";color:var(--primary);margin-right:10px;font-weight:600;
+  }
+
+  .btn{
+    display:inline-block;text-decoration:none;text-align:center;
+    width:100%;padding:14px 0;border-radius:8px;font-size:17px;font-weight:600;
+    transition:0.3s;
+  }
+
+  .primary-btn{
+    background:var(--primary);color:white;
+  }
+  .primary-btn:hover{background:#1e40af;}
+
+  .outline-btn{
+    border:2px solid var(--primary);color:var(--primary);background:none;
+  }
+  .outline-btn:hover{background:var(--primary);color:white;}
+
+  @media (max-width:820px){
+    .pricing-container{grid-template-columns:1fr;}
+  }
+</style>
+
+</head>
+<body>
+
+<h1>Choose Your AccessiSuite Plan</h1>
+
+<div class="pricing-container">
+
+  <!-- ENTERPRISE PLAN -->
+  <div class="plan">
+    <h2>Enterprise Solutions</h2>
+    <p>Designed for organizations, accessibility departments, schools, hospitals, NGOs, government portals, and businesses prioritizing equal digital access.</p>
+
+    <ul>
+      <li>Full suite of AI accessibility tools</li>
+      <li>Head tracking + mouth click control</li>
+      <li>Voice command navigation system</li>
+      <li>Color blindness correction presets</li>
+      <li>Custom branding & theme adaptation</li>
+      <li>Compliance reports (WCAG 2.1 AA)</li>
+      <li>Admin & multi-user management</li>
+      <li>Dedicated onboarding & support</li>
+    </ul>
+
+    <a href="#contact-sales" class="btn primary-btn">Contact Sales</a>
+  </div>
+
+  <!-- USER PLAN -->
+  <div class="plan">
+    <h2>For Individual Users</h2>
+    <p>Personal access to assistive tools that make browsing, reading, and navigating the web easier, clearer, and more comfortable.</p>
+
+    <ul>
+      <li>AI screen narration assistant</li>
+      <li>Speech-based browsing control</li>
+      <li>Color-blind friendly page filters</li>
+      <li>Text clarity & readability enhancer</li>
+      <li>Dark, light & high-contrast modes</li>
+      <li>Works on any website</li>
+    </ul>
+
+    <a href="experience.html" class="btn outline-btn">Get Browser Extension</a>
+  </div>
+
+</div>
+
+</body>
+</html>
